@@ -101,6 +101,6 @@
                                            :compiler-stats true
                                            :elide-asserts  true}}}}}}
 
-  :aliases {"dev-build"  ["with-profile" "+devpack" "cljsbuild" "once" "background" "options" "content-script"]
+  :aliases {"dev-build"  ["with-profile" "+devpack" "do" "clean," "cljsbuild" "once" "background" "options" "content-script"]
             "auto-build" ["with-profile" "+devpack" "cljsbuild" "auto" "background" "options" "content-script"]
             "release"    ["with-profile" "+release" "do" "clean," "cljsbuild" "once" "background" "options" "content-script"]})
