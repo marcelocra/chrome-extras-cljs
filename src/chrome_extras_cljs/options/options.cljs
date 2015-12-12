@@ -16,12 +16,6 @@
         (.setTimeout js/window #(set! (.-textContent user-feedback-elem) "") 750))
       (set! (.-textContent user-feedback-elem) last-error))))
 
-(defn- clear-history
-  []
-  (.remove js/chrome.storage.sync
-           #js ["history" "historyItems"]
-           (fn [] (user-feedback "History removed"))))
-
 (defn headers [{:keys [name class] :as data} owner]
   (reify
     om/IRender
@@ -98,7 +92,8 @@
            {:id      "clear-history"
             :class   "btn btn-default"
             :onClick (fn [] (do
-                              (clear-history)
+                              (db/c-remove ["history" "historyItems"]
+                                           (user-feedback "History removed"))
                               (reset! app-state initial-value)))}
            "Clear all history"]]]))))
 

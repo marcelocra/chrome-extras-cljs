@@ -23,6 +23,13 @@
   (.set js/chrome.storage.sync
         (clj->js {key value})))
 
+(defn c-remove [korks cb]
+  (.remove js/chrome.storage.sync
+           (clj->js korks)
+           (fn [] (cb))))
+
+;; Load the information as soon as the file is loaded.
+
 (c-get "history"
        (fn [hist]
          (swap! app-state assoc :history hist)))
