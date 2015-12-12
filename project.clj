@@ -28,7 +28,7 @@
                                            :output-dir            "resources/public/js/compiled/background"
                                            :asset-path            "js/compiled/background"
                                            :externs               ["resources/public/js/chrome_extensions.js"]
-                                           :optimizations         :advanced
+                                           :optimizations         :whitespace
                                            :anon-fn-naming-policy :unmapped
                                            :main                  chrome-extras-cljs.background.background
                                            :compiler-stats        true
@@ -43,7 +43,7 @@
                                            :output-dir            "resources/public/js/compiled/options"
                                            :asset-path            "js/compiled/options"
                                            :externs               ["resources/public/js/chrome_extensions.js"]
-                                           :optimizations         :advanced
+                                           :optimizations         :whitespace
                                            :anon-fn-naming-policy :unmapped
                                            :main                  chrome-extras-cljs.options.options
                                            :compiler-stats        true
@@ -58,7 +58,7 @@
                                            :output-dir            "resources/public/js/compiled/content_script"
                                            :asset-path            "js/compiled/content_script"
                                            :externs               ["resources/public/js/chrome_extensions.js"]
-                                           :optimizations         :advanced
+                                           :optimizations         :whitespace
                                            :anon-fn-naming-policy :unmapped
                                            :main                  chrome-extras-cljs.content-script.content-script
                                            :compiler-stats        true
