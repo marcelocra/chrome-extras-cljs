@@ -1,65 +1,26 @@
 (ns chrome-extras-cljs.options.options
   (:require [chrome-extras-cljs.background.events :refer [constants]]
             [chrome-extras-cljs.background.utils :refer [stringify logging]]
+            [chrome-extras-cljs.options.database :refer [app-state initial-value] :as db]
             [om.core :as om :include-macros true]
             [sablono.core :as html :refer-macros [html]]
             [clojure.string :as s]))
 
 (defn- user-feedback
   [message]
-  (fn []
-    (let [user-feedback-elem (.getElementById js/document "user-feedback")
-          last-error (.-lastError js/chrome.runtime)]
-      (if (nil? last-error)
-        (do
-          (set! (.-textContent user-feedback-elem) message)
-          (.setTimeout js/window #(set! (.-textContent user-feedback-elem) "") 750))
-        (set! (.-textContent user-feedback-elem) last-error)))))
-
-
-(defn- restore-options
-  []
-  (.get js/chrome.storage.sync
-        (clj->js ["history" "historyItems"])
-        (fn [items]
-          (set! (.-checked (.getElementById js/document "history"))
-                (aget items "history"))
-          (let [history-items (aget items "historyItems")
-                doc js/document
-                ul (.createElement doc "ul")
-                dom-saved-items (.getElementById doc "saved-items")
-                li-items (map (fn [item]
-                                (let [li (.createElement doc "li")]
-                                  (.appendChild li (.createTextNode doc item))
-                                  li))
-                              history-items)]
-            (logging "li-items" (stringify li-items))
-            (doseq [li-item li-items]
-              (.appendChild ul li-item))
-            (.appendChild dom-saved-items ul)))))
-
-(defn- save-options
-  []
-  (.set js/chrome.storage.sync
-        #js {:history (-> js/document
-                          (.getElementById "history")
-                          (.-checked))}
-        (user-feedback "Options saved")))
+  (let [user-feedback-elem (.getElementById js/document "user-feedback")
+        last-error (.-lastError js/chrome.runtime)]
+    (if (nil? last-error)
+      (do
+        (set! (.-textContent user-feedback-elem) message)
+        (.setTimeout js/window #(set! (.-textContent user-feedback-elem) "") 750))
+      (set! (.-textContent user-feedback-elem) last-error))))
 
 (defn- clear-history
   []
   (.remove js/chrome.storage.sync
            #js ["history" "historyItems"]
-           (user-feedback "History removed"))
-  (let [doc js/document]
-    (-> doc
-        (.getElementById "history")
-        (.-checked)
-        (set! false))
-    (-> doc
-        (.getElementById "history")
-        (.-innerHTML)
-        (set! ""))))
+           (fn [] (user-feedback "History removed"))))
 
 (defn headers [{:keys [name class] :as data} owner]
   (reify
@@ -104,12 +65,26 @@
          [:p "Extension options:"]
          [:div {:class "input-group"}
           [:span
-           [:input {:type "checkbox" :id "history"} "Save history of searches"]]
-          [:p
-           [:button {:id "save" :class "btn btn-default"} "Save"]]]
+           [:input
+            {:type    "checkbox"
+             :id      "history"
+             :checked (:history data)
+             :onClick (fn [] (om/transact! data
+                                           :history
+                                           (fn [curr-value]
+                                             (let [new-value (not curr-value)]
+                                               (db/c-set "history" new-value)
+                                               (user-feedback
+                                                 (str "History status: "
+                                                      (if new-value
+                                                        "saving"
+                                                        "not saving")))
+                                               new-value))))}
+            "Save history of searches"]]]
          [:div
           [:p "Saved items"]
-          [:div {:id "saved-items"}]]]))))
+          [:div {:id "saved-items"}
+           (into [:ul] (map (fn [e] [:li e]) (:history-items data)))]]]))))
 
 (defn danger-tab [data owner]
   (reify
@@ -119,7 +94,13 @@
         [:div {:role "tabpanel" :class "tab-pane" :id "danger-tab"}
          [:div
           [:p "Danger zone!"]
-          [:button {:id "clear-history" :class "btn btn-default"} "Clear all history"]]]))))
+          [:button
+           {:id      "clear-history"
+            :class   "btn btn-default"
+            :onClick (fn [] (do
+                              (clear-history)
+                              (reset! app-state initial-value)))}
+           "Clear all history"]]]))))
 
 (defn widget [data owner]
   (reify
@@ -136,25 +117,27 @@
 
            ;; Div with the content of the tabs.
            [:div {:class "tab-content"}
-            (om/build home-tab {})
-            (om/build history-tab {})
-            (om/build danger-tab {})]
+            (om/build home-tab data)
+            (om/build history-tab data)
+            (om/build danger-tab data)]
 
            ;; Show user feedback here.
            [:div {:id "user-feedback"}]])))))
 
 (om/root
   widget
-  {}
+  app-state
   {:target (. js/document (getElementById "app"))})
 
-(let [doc js/document]
-  (.addEventListener doc "DOMContentLoaded" restore-options)
-  (-> doc
-      (.getElementById "save")
-      (.addEventListener "click" save-options))
-  (-> doc
-      (.getElementById "clear-history")
-      (.addEventListener "click" clear-history)))
-
-
+;; Receives messages containing the text used for the search. This text is added to
+;; the history, should the history be saved.
+(.addListener js/chrome.runtime.onMessage
+              (fn [request sender send-response]
+                (if (:history @app-state)
+                  (let [hist-items (:history-items @app-state)
+                        updated-hist-items (conj hist-items (aget request "selection-text"))]
+                    (logging "initial history items" hist-items)
+                    (logging "updated history items" updated-hist-items)
+                    (swap! app-state assoc :history-items updated-hist-items)
+                    (db/c-set "historyItems" updated-hist-items))
+                  (logging "Didn't save history items"))))

@@ -1,4 +1,5 @@
-(ns chrome-extras-cljs.background.utils)
+(ns chrome-extras-cljs.background.utils
+  (:require [chrome-extras-cljs.options.database :refer [app-state]]))
 
 (defn- format-js-date
   "Properly formats dates, as such: 'Sat Nov 24 2015 00:00:00'."
@@ -32,31 +33,16 @@
       (logging "success" success-message)
       (logging "error" error))))
 
-(defn- update-storage-history-items
-  [updated-history-items]
-  (.set js/chrome.storage.sync
-        (clj->js {:historyItems updated-history-items})
-        (error-handler "Items properly saved")))
-
-(defn- retrieve-and-treat-elements
+(defn- maybe-save-elements
   [selection-text]
-  (.get js/chrome.storage.sync
-        (clj->js {:history nil :historyItems []})
-        (fn [items]
-          (logging "items" (stringify items))
-          (let [history-items (aget items "historyItems")
-                updated-history-items (.concat history-items selection-text)]
-            (logging "history items" (stringify history-items))
-            (logging "updated history items" (stringify updated-history-items))
-            (if (aget items "history")
-              (update-storage-history-items updated-history-items))))))
+  (.sendMessage js/chrome.runtime #js {"selection-text" selection-text}))
 
 (defn open-selection-on-google-maps
   [info tab]
   (let [base-url "https://www.google.com/maps?q="
         selection-text (.-selectionText info)
         url (str base-url selection-text)]
-    (.create js/chrome.tabs #js {:url url})
+    ;(.create js/chrome.tabs #js {:url url})
     (logging "selection object" (stringify info))
     (logging "final url" {:url url})
-    (retrieve-and-treat-elements selection-text)))
+    (maybe-save-elements selection-text)))
