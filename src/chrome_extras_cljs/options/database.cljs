@@ -2,7 +2,7 @@
 
 (enable-console-print!)
 
-(def initial-value {:history       false
+(def initial-value {:history       true
                     :history-items []})
 
 (def app-state (atom initial-value))

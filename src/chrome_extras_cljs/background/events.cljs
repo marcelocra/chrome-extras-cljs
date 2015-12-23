@@ -5,7 +5,8 @@
 
 (enable-console-print!)
 
-(def constants (atom {:identifiers  {:tab-ids "tabsIds"}
+(def constants (atom {:identifiers  {:tab-ids "tabsIds"
+                                     :tab-list "tabList"}
                       :url-mappings {:google "https://www.google.com"}}))
 
 ;; COMMANDS.
@@ -46,9 +47,36 @@
                                                                   #js {:active true})))
                     (.set js/chrome.storage.local (clj->js {tab-ids-key (dissoc tabs (str curr-tab-id))})))))))))
 
+(defn- get-highlighted-tabs
+  [cb]
+  (.query js/chrome.tabs
+          #js {:highlighted true :active true :currentWindow true}
+          (fn [tabs]
+            (cb tabs))))
+
+(defn- get-and-update-highlighted-tabs-position
+  [tabs]
+  (let [tab-list-key (:tab-list (:identifiers @constants))]
+    (.get js/chrome.storage.local
+          (clj->js {tab-list-key nil})
+          (fn [items]
+            (let [old-window-id (js->clj (aget items tab-list-key))
+                  tab-url-vec (map #(.-url %) tabs)
+                  tab-id-vec (map #(.-id %) tabs)]
+              (if (nil? old-window-id)
+                (do (js/chrome.windows.create (clj->js {:url tab-url-vec}))
+                    (.set js/chrome.storage.local (clj->js {tab-list-key (.-windowId (first tabs))})))
+                (do (js/chrome.tabs.move tab-id-vec
+                                         #js {:windowId old-window-id})
+                    (.set js/chrome.storage.local (clj->js {tab-list-key nil})))))))))
+
+;(defn- toggle-tab-to-window
+;  []
+;  (get-current-tab get-and-update-tab-position))
+
 (defn- toggle-tab-to-window
   []
-  (get-current-tab get-and-update-tab-position))
+  (get-highlighted-tabs get-and-update-highlighted-tabs-position))
 
 (defmulti command-selector
           (fn [command]
