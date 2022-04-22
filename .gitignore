@@ -15,6 +15,7 @@ pom.xml
 .idea
 *iml
 
+resources/public/js/chrome_extensions.js
 resources/public/js/libs/*
 resources/public/js/compiled/*
 
